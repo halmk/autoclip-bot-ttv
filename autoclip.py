@@ -18,6 +18,7 @@ class Bot(SingleServerIRCBot):
     # 初期化
     def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
         self.user = user
+        self.set_user_id(user)
         self.client_id = client_id
         self.client_secret = client_secret
         self.user_token = user_token
@@ -93,10 +94,11 @@ class Bot(SingleServerIRCBot):
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
         if hype_sum >= outlier and diff_clipped > 30.0:
-            edit_url = self.create_clip()
+            clip_id = self.create_clip()
+            self.write_clipinfo(clip_id)
             clip_file = f'./hype/{self.streamer}_clips.txt'
             with open(clip_file, 'a') as f:
-                f.write(f'{crt_date},{edit_url}\n')
+                f.write(f'{crt_date},{clip_id}\n')
             self.que = []
             self.last_clipped = time.time()
 
@@ -106,6 +108,27 @@ class Bot(SingleServerIRCBot):
         #print(f"Channel : {self.channel} , Date : [{crt.hour:02}:{crt.minute:02}:{crt.second:02}] , User : {user} , Chat : {chat} , Hype : {sim:.2f}, Hype_sum : {hype_sum:.2f}", end='\r')
 
         return
+
+
+    def write_clipinfo(self, clip_id):
+        if self.output.split('.')[-1] == 'json':
+            data = {}
+            data["id"] = clip_id
+            data["url"] = f'https://clips.twitch.tv/{clip_id}'
+            data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
+            data["broadcaster_id"] = self.streamer_id
+            data["broadcaster_name"] = self.streamer
+            data["creator_id"] = self.user_id
+            data["creator_name"] = self.user
+            data["created_at"] = datetime.strptime(time.time(), '%Y-%m-%dT%H:%M:%SZ')
+
+            with open(self.output, 'ab+') as f:
+                f.seek(-1,2)
+                f.truncate()
+                f.write(', '.encode())
+                f.write(json.dumps(data, ensure_ascii=False).encode()[1:-1])
+                f.write(']'.encode())
+
 
 
     def get_token(self):
@@ -152,13 +175,13 @@ class Bot(SingleServerIRCBot):
         #print(response.headers)
         content = response.json()
         print(content)
-        return content["data"][0]["edit_url"]
+        return content["data"][0]["id"]
 
 
     # Get Users API を使用して配信者のIDを取得する
-    def get_streamer_id(self, streamer):
+    def get_user_id(self, user):
         params = (
-            ('login', streamer),
+            ('login', user),
         )
         content = self.get_request('https://api.twitch.tv/helix/users', params=params)
         print(content)
@@ -168,7 +191,11 @@ class Bot(SingleServerIRCBot):
 
     # IDを取得して self.streamer_id にセットする
     def set_streamer_id(self, streamer):
-        self.streamer_id = self.get_streamer_id(streamer)
+        self.streamer_id = self.get_user_id(streamer)
+
+
+    def set_user_id(self, user):
+        self.user_id = self.get_user_id(user)
 
 
     # ログファイルのファイルパスを指定する
