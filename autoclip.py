@@ -16,7 +16,7 @@ PORT = 6667
 
 class Bot(SingleServerIRCBot):
     # 初期化
-    def __init__(self, user, client_id, client_secret, user_token, streamer, model, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+    def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
         self.user = user
         self.client_id = client_id
         self.client_secret = client_secret
@@ -26,6 +26,7 @@ class Bot(SingleServerIRCBot):
         self.streamer = streamer
         self.channel = '#' + streamer
         self.model = model
+        self.output = output
         self.set_streamer_id(streamer)
         self.set_logfile(streamer)
         self.hype = 0

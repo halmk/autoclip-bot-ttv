@@ -6,23 +6,12 @@ import logging
 import autoclip
 
 
+@click.group()
+def cli():
+    pass
+
+
 @click.command()
-@click.argument('mode')
-@click.option('--streamer', '-s')
-def cmd(mode, streamer):
-    msg = "Mode: {mode}, Streamer: {streamer}".format(mode=mode, streamer=streamer)
-    click.echo(msg)
-
-    if mode == 'configure':
-        configure()
-    elif mode == 'train':
-        train(streamer)
-    elif mode == 'run':
-        run(streamer)
-    else:
-        pass
-
-
 def configure():
     user = input("Username: ")
     client_id = input("Twitch Client ID: ")
@@ -36,6 +25,8 @@ def configure():
         f.write(f"{user},{client_id},{client_secret},{user_token}")
 
 
+@click.command()
+@click.option('--streamer', '-s')
 def train(streamer):
     click.echo("train")
 
@@ -65,7 +56,10 @@ def train(streamer):
     model.save("./model/{streamer}_chat.model".format(streamer=streamer))
 
 
-def run(streamer):
+@click.command()
+@click.option('--streamer', '-s')
+@click.option('--output', '-o', required=True)
+def run(streamer, output):
     click.echo("run")
 
     home = expanduser('~')
@@ -90,13 +84,17 @@ def run(streamer):
         client_secret=client_secret,
         user_token=user_token,
         streamer=streamer,
-        model=model
+        model=model,
+        output=output
     )
     bot.start()
 
 
 def main():
-    cmd()
+    cli()
 
 if __name__ == '__main__':
+    cli.add_command(configure)
+    cli.add_command(train)
+    cli.add_command(run)
     main()
