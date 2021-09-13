@@ -8,6 +8,8 @@ import os
 import numpy as np
 import csv
 import pandas as pd
+import pymysql.cursors
+import dj_database_url
 
 
 SERVER = 'irc.chat.twitch.tv'
@@ -18,7 +20,6 @@ class Bot(SingleServerIRCBot):
     # 初期化
     def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
         self.user = user
-        self.set_user_id(user)
         self.client_id = client_id
         self.client_secret = client_secret
         self.user_token = user_token
@@ -28,6 +29,7 @@ class Bot(SingleServerIRCBot):
         self.channel = '#' + streamer
         self.model = model
         self.output = output
+        self.set_user_id(user)
         self.set_streamer_id(streamer)
         self.set_logfile(streamer)
         self.hype = 0
@@ -47,6 +49,9 @@ class Bot(SingleServerIRCBot):
             header = ['datetime', 'hype', 'outlier']
             writer.writerow(header)
 
+        if self.output.split('.')[-1] != 'json':
+            self.connect_to_database()
+
 
     def on_welcome(self, c, e):
         print('Joining ' + self.channel)
@@ -63,7 +68,7 @@ class Bot(SingleServerIRCBot):
         # チャットユーザとチャットメッセージを取得
         user = e.source.split('!')[0]
         chat = e.arguments[0]
-        if len(chat) >= 20:
+        if len(chat) >= 20 or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
             return
         sim = self.eval_chat(chat=chat, metric='avg')
 
@@ -110,25 +115,43 @@ class Bot(SingleServerIRCBot):
         return
 
 
+    def connect_to_database(self):
+        database = dj_database_url.parse(self.output)
+        # Connect to the database
+        self.connection = pymysql.connect(
+            host=database.HOST,
+            user=database.USER,
+            password=database.PASSWORD,
+            database=database.NAME,
+            cursorclass=pymysql.cursors.DictCursor
+        )
+
+
     def write_clipinfo(self, clip_id):
+        data = {}
+        data["id"] = clip_id
+        data["url"] = f'https://clips.twitch.tv/{clip_id}'
+        data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
+        data["broadcaster_id"] = self.streamer_id
+        data["broadcaster_name"] = self.streamer
+        data["creator_id"] = self.user_id
+        data["creator_name"] = self.user
+        data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+
         if self.output.split('.')[-1] == 'json':
-            data = {}
-            data["id"] = clip_id
-            data["url"] = f'https://clips.twitch.tv/{clip_id}'
-            data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
-            data["broadcaster_id"] = self.streamer_id
-            data["broadcaster_name"] = self.streamer
-            data["creator_id"] = self.user_id
-            data["creator_name"] = self.user
-            data["created_at"] = datetime.strptime(time.time(), '%Y-%m-%dT%H:%M:%SZ')
+            with open(self.output, 'r') as f:
+                json_dict = json.load(f)
+            with open(self.output, 'w') as f:
+                json_dict["clips"].append(data)
+                json.dump(json_dict,f,indent=4)
+        else:
+            with self.connection:
+                with self.connection.cursor() as cursor:
+                    # Create a new record
+                    sql = "INSERT INTO `autoclip` (`id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['crated_at']))
 
-            with open(self.output, 'ab+') as f:
-                f.seek(-1,2)
-                f.truncate()
-                f.write(', '.encode())
-                f.write(json.dumps(data, ensure_ascii=False).encode()[1:-1])
-                f.write(']'.encode())
-
+                self.connection.commit()
 
 
     def get_token(self):
