@@ -117,12 +117,13 @@ class Bot(SingleServerIRCBot):
 
     def connect_to_database(self):
         database = dj_database_url.parse(self.output)
+        print(database)
         # Connect to the database
         self.connection = pymysql.connect(
-            host=database.HOST,
-            user=database.USER,
-            password=database.PASSWORD,
-            database=database.NAME,
+            host=database['HOST'],
+            user=database['USER'],
+            password=database['PASSWORD'],
+            database=database['NAME'],
             cursorclass=pymysql.cursors.DictCursor
         )
 
