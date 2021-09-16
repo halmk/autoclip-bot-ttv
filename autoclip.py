@@ -49,9 +49,6 @@ class Bot(SingleServerIRCBot):
             header = ['datetime', 'hype', 'outlier']
             writer.writerow(header)
 
-        if self.output.split('.')[-1] != 'json':
-            self.connect_to_database()
-
 
     def on_welcome(self, c, e):
         print('Joining ' + self.channel)
@@ -119,18 +116,19 @@ class Bot(SingleServerIRCBot):
         database = dj_database_url.parse(self.output)
         print(database)
         # Connect to the database
-        self.connection = pymysql.connect(
+        connection = pymysql.connect(
             host=database['HOST'],
             user=database['USER'],
             password=database['PASSWORD'],
             database=database['NAME'],
             cursorclass=pymysql.cursors.DictCursor
         )
+        return connection
 
 
     def write_clipinfo(self, clip_id):
         data = {}
-        data["id"] = clip_id
+        data["clip_id"] = clip_id
         data["url"] = f'https://clips.twitch.tv/{clip_id}'
         data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
         data["broadcaster_id"] = self.streamer_id
@@ -146,13 +144,14 @@ class Bot(SingleServerIRCBot):
                 json_dict["clips"].append(data)
                 json.dump(json_dict,f,indent=4)
         else:
-            with self.connection:
-                with self.connection.cursor() as cursor:
+            connection = self.connect_to_database()
+            with connection:
+                with connection.cursor() as cursor:
                     # Create a new record
-                    sql = "INSERT INTO `autoclip` (`id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                    cursor.execute(sql, (data['id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['crated_at']))
+                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['created_at']))
 
-                self.connection.commit()
+                connection.commit()
 
 
     def get_token(self):
