@@ -8,6 +8,8 @@ import os
 import numpy as np
 import csv
 import pandas as pd
+import pymysql.cursors
+import dj_database_url
 
 
 SERVER = 'irc.chat.twitch.tv'
@@ -16,7 +18,7 @@ PORT = 6667
 
 class Bot(SingleServerIRCBot):
     # 初期化
-    def __init__(self, user, client_id, client_secret, user_token, streamer, model, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+    def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
         self.user = user
         self.client_id = client_id
         self.client_secret = client_secret
@@ -26,6 +28,8 @@ class Bot(SingleServerIRCBot):
         self.streamer = streamer
         self.channel = '#' + streamer
         self.model = model
+        self.output = output
+        self.set_user_id(user)
         self.set_streamer_id(streamer)
         self.set_logfile(streamer)
         self.hype = 0
@@ -61,7 +65,7 @@ class Bot(SingleServerIRCBot):
         # チャットユーザとチャットメッセージを取得
         user = e.source.split('!')[0]
         chat = e.arguments[0]
-        if len(chat) >= 20:
+        if len(chat) >= 20 or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
             return
         sim = self.eval_chat(chat=chat, metric='avg')
 
@@ -91,11 +95,12 @@ class Bot(SingleServerIRCBot):
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 30.0:
-            edit_url = self.create_clip()
+        if hype_sum >= outlier and diff_clipped > 15.0:
+            clip_id = self.create_clip()
+            self.write_clipinfo(clip_id)
             clip_file = f'./hype/{self.streamer}_clips.txt'
             with open(clip_file, 'a') as f:
-                f.write(f'{crt_date},{edit_url}\n')
+                f.write(f'{crt_date},{clip_id}\n')
             self.que = []
             self.last_clipped = time.time()
 
@@ -105,6 +110,48 @@ class Bot(SingleServerIRCBot):
         #print(f"Channel : {self.channel} , Date : [{crt.hour:02}:{crt.minute:02}:{crt.second:02}] , User : {user} , Chat : {chat} , Hype : {sim:.2f}, Hype_sum : {hype_sum:.2f}", end='\r')
 
         return
+
+
+    def connect_to_database(self):
+        database = dj_database_url.parse(self.output)
+        print(database)
+        # Connect to the database
+        connection = pymysql.connect(
+            host=database['HOST'],
+            user=database['USER'],
+            password=database['PASSWORD'],
+            database=database['NAME'],
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        return connection
+
+
+    def write_clipinfo(self, clip_id):
+        data = {}
+        data["clip_id"] = clip_id
+        data["url"] = f'https://clips.twitch.tv/{clip_id}'
+        data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
+        data["broadcaster_id"] = self.streamer_id
+        data["broadcaster_name"] = self.streamer
+        data["creator_id"] = self.user_id
+        data["creator_name"] = self.user
+        data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        if self.output.split('.')[-1] == 'json':
+            with open(self.output, 'r') as f:
+                json_dict = json.load(f)
+            with open(self.output, 'w') as f:
+                json_dict["clips"].append(data)
+                json.dump(json_dict,f,indent=4)
+        else:
+            connection = self.connect_to_database()
+            with connection:
+                with connection.cursor() as cursor:
+                    # Create a new record
+                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['created_at']))
+
+                connection.commit()
 
 
     def get_token(self):
@@ -151,13 +198,13 @@ class Bot(SingleServerIRCBot):
         #print(response.headers)
         content = response.json()
         print(content)
-        return content["data"][0]["edit_url"]
+        return content["data"][0]["id"]
 
 
     # Get Users API を使用して配信者のIDを取得する
-    def get_streamer_id(self, streamer):
+    def get_user_id(self, user):
         params = (
-            ('login', streamer),
+            ('login', user),
         )
         content = self.get_request('https://api.twitch.tv/helix/users', params=params)
         print(content)
@@ -167,7 +214,11 @@ class Bot(SingleServerIRCBot):
 
     # IDを取得して self.streamer_id にセットする
     def set_streamer_id(self, streamer):
-        self.streamer_id = self.get_streamer_id(streamer)
+        self.streamer_id = self.get_user_id(streamer)
+
+
+    def set_user_id(self, user):
+        self.user_id = self.get_user_id(user)
 
 
     # ログファイルのファイルパスを指定する
