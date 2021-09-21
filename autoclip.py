@@ -97,12 +97,13 @@ class Bot(SingleServerIRCBot):
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
         if hype_sum >= outlier and diff_clipped > 15.0:
             clip_id = self.create_clip()
-            self.write_clipinfo(clip_id)
-            clip_file = f'./hype/{self.streamer}_clips.txt'
-            with open(clip_file, 'a') as f:
-                f.write(f'{crt_date},{clip_id}\n')
-            self.que = []
-            self.last_clipped = time.time()
+            if clip_id is not None:
+                self.write_clipinfo(clip_id)
+                clip_file = f'./hype/{self.streamer}_clips.txt'
+                with open(clip_file, 'a') as f:
+                    f.write(f'{crt_date},{clip_id}\n')
+                self.que = []
+                self.last_clipped = time.time()
 
         # コメント情報を標準出力
         last_clipped_secs = self.last_clipped - self.start_time
@@ -195,6 +196,10 @@ class Bot(SingleServerIRCBot):
 
         response = requests.post('https://api.twitch.tv/helix/clips', headers=headers, params=params)
         self.clip_rate_remain = response.headers["Ratelimit-Remaining"]
+        status = response.status_code
+        if status == 404:
+            print(response)
+            return None
         #print(response.headers)
         content = response.json()
         print(content)
