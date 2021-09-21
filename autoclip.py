@@ -95,7 +95,7 @@ class Bot(SingleServerIRCBot):
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 30.0:
+        if hype_sum >= outlier and diff_clipped > 15.0:
             clip_id = self.create_clip()
             self.write_clipinfo(clip_id)
             clip_file = f'./hype/{self.streamer}_clips.txt'
