@@ -1,6 +1,7 @@
 from irc.bot import SingleServerIRCBot
 import logging
 import time
+import threading
 from datetime import datetime
 import requests
 import json
@@ -95,15 +96,11 @@ class Bot(SingleServerIRCBot):
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 15.0:
-            clip_id = self.create_clip()
-            if clip_id is not None:
-                self.write_clipinfo(clip_id)
-                clip_file = f'./hype/{self.streamer}_clips.txt'
-                with open(clip_file, 'a') as f:
-                    f.write(f'{crt_date},{clip_id}\n')
-                self.que = []
-                self.last_clipped = time.time()
+        if hype_sum >= outlier and diff_clipped > 30.0:
+            thread = threading.Thread(target=self.create_clip)
+            thread.start()
+            self.que = []
+            self.last_clipped = time.time()
 
         # コメント情報を標準出力
         last_clipped_secs = self.last_clipped - self.start_time
@@ -185,7 +182,7 @@ class Bot(SingleServerIRCBot):
             return response_json
 
 
-    def create_clip(self):
+    def create_clip_request(self):
         headers = {
             'Client-ID': "gp762nuuoqcoxypju8c569th9wz7q5",
             'Authorization': f'Bearer {self.user_token}'
@@ -204,6 +201,18 @@ class Bot(SingleServerIRCBot):
         content = response.json()
         print(content)
         return content["data"][0]["id"]
+
+
+    def create_clip(self):
+        time.sleep(15)
+        crt = datetime.fromtimestamp(time.time())
+        crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
+        clip_id = self.create_clip_request()
+        if clip_id is not None:
+            self.write_clipinfo(clip_id)
+            clip_file = f'./hype/{self.streamer}_clips.txt'
+            with open(clip_file, 'a') as f:
+                f.write(f'{crt_date},{clip_id}\n')
 
 
     # Get Users API を使用して配信者のIDを取得する
