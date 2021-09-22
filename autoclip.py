@@ -96,7 +96,7 @@ class Bot(SingleServerIRCBot):
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 15.0:
+        if hype_sum >= outlier and diff_clipped > 30.0:
             thread = threading.Thread(target=self.create_clip)
             thread.start()
             self.que = []
