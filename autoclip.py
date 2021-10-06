@@ -19,7 +19,7 @@ PORT = 6667
 
 class Bot(SingleServerIRCBot):
     # 初期化
-    def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+    def __init__(self, user, client_id, client_secret, user_token, streamer, category, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
         self.user = user
         self.client_id = client_id
         self.client_secret = client_secret
@@ -28,6 +28,7 @@ class Bot(SingleServerIRCBot):
         self.app_token = self.get_token()
         self.streamer = streamer
         self.channel = '#' + streamer
+        self.category = category
         self.model = model
         self.output = output
         self.set_user_id(user)
@@ -204,6 +205,11 @@ class Bot(SingleServerIRCBot):
 
 
     def create_clip(self):
+        current_category = self.get_stream_category()
+        if self.category != current_category:
+            print("Target category is " + self.category + ", but current stream category is " + current_category + ".")
+            return
+
         time.sleep(15)
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
@@ -233,6 +239,17 @@ class Bot(SingleServerIRCBot):
 
     def set_user_id(self, user):
         self.user_id = self.get_user_id(user)
+
+
+    # 配信中のカテゴリを取得する
+    def get_stream_category(self):
+        params = (
+            ('user_id', self.streamer_id)
+        )
+        content = self.get_request('https://api.twitch.tv/helix/streams', params=params)
+        print(content)
+        category = content["data"][0]["game_name"]
+        return category
 
 
     # ログファイルのファイルパスを指定する
