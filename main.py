@@ -69,12 +69,11 @@ def run(streamer, output, category):
     autoclip_config = os.path.join(autoclip_dir, 'config')
     with open(autoclip_config, 'r') as f:
         s = f.readline()
-    print(s)
     user = s.split(',')[0]
     client_id = s.split(',')[1]
     client_secret = s.split(',')[2]
     user_token = s.split(',')[3]
-    print(user, client_id, client_secret, user_token)
+    print(f'User: {user}, Output: {output}, Category: {category}')
 
     ## 既存のモデルをロードする
     model = word2vec.Word2Vec.load(f'./model/{streamer}_chat.model')
