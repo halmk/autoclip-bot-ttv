@@ -59,7 +59,8 @@ def train(streamer):
 @click.command()
 @click.option('--streamer', '-s')
 @click.option('--output', '-o', required=True)
-def run(streamer, output):
+@click.option('--category', '-c')
+def run(streamer, output, category):
     click.echo("run")
 
     home = expanduser('~')
@@ -84,6 +85,7 @@ def run(streamer, output):
         client_secret=client_secret,
         user_token=user_token,
         streamer=streamer,
+        category=category,
         model=model,
         output=output
     )
