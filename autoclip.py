@@ -283,4 +283,4 @@ class Bot(SingleServerIRCBot):
         except KeyError as e:
             print(e)
             return 0.05
-        return max(sim, 0.05)
+        return min(max(sim, 0.05), 0.7)
