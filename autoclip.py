@@ -19,7 +19,20 @@ PORT = 6667
 
 class Bot(SingleServerIRCBot):
     # 初期化
-    def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+    def __init__(
+        self,
+        user,
+        client_id,
+        client_secret,
+        user_token,
+        streamer,
+        model,
+        output,
+        message_length,
+        recent_chat,
+        diff_clip,
+        hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+
         self.user = user
         self.client_id = client_id
         self.client_secret = client_secret
@@ -30,6 +43,9 @@ class Bot(SingleServerIRCBot):
         self.channel = '#' + streamer
         self.model = model
         self.output = output
+        self.message_length = message_length
+        self.recent_chat = recent_chat
+        self.diff_clip = diff_clip
         self.set_user_id(user)
         self.set_streamer_id(streamer)
         self.set_logfile(streamer)
@@ -66,7 +82,7 @@ class Bot(SingleServerIRCBot):
         # チャットユーザとチャットメッセージを取得
         user = e.source.split('!')[0]
         chat = e.arguments[0]
-        if len(chat) >= 20 or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
+        if len(chat) >= self.message_length or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
             return
         sim = self.eval_chat(chat=chat, metric='avg')
 
@@ -74,7 +90,7 @@ class Bot(SingleServerIRCBot):
         self.que.append({'sim': sim, 'time': time.time()})
         while len(self.que) != 0:
             d_t = time.time() - self.que[0]['time']
-            if d_t >= 10:
+            if d_t >= self.recent_chat:
                 #print(f"deleted: {self.que[0]['sim']:.2f}")
                 self.que = self.que[1:]
             else:
@@ -96,7 +112,7 @@ class Bot(SingleServerIRCBot):
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 30.0:
+        if hype_sum >= outlier and diff_clipped > self.diff_clip:
             thread = threading.Thread(target=self.create_clip)
             thread.start()
             self.que = []

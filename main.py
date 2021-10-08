@@ -59,7 +59,10 @@ def train(streamer):
 @click.command()
 @click.option('--streamer', '-s')
 @click.option('--output', '-o', required=True)
-def run(streamer, output):
+@click.option('--message-length', '-m', default=20)
+@click.option('--recent-chattime', '-l', default=10)
+@click.option('--diff-clip', '-d', default=30.0)
+def run(streamer, output, message_length, recent_chat, diff_clip):
     click.echo("run")
 
     home = expanduser('~')
@@ -85,7 +88,10 @@ def run(streamer, output):
         user_token=user_token,
         streamer=streamer,
         model=model,
-        output=output
+        output=output,
+        message_length=message_length,
+        recent_chat=recent_chat,
+        diff_clip=diff_clip
     )
     bot.start()
 
