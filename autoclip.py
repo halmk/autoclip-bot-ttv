@@ -26,6 +26,7 @@ class Bot(SingleServerIRCBot):
         client_secret,
         user_token,
         streamer,
+        category,
         model,
         output,
         message_length,
@@ -41,6 +42,7 @@ class Bot(SingleServerIRCBot):
         self.app_token = self.get_token()
         self.streamer = streamer
         self.channel = '#' + streamer
+        self.category = category
         self.model = model
         self.output = output
         self.message_length = message_length
@@ -140,6 +142,13 @@ class Bot(SingleServerIRCBot):
         return connection
 
 
+    def create_jsonfile(self):
+        with open(self.output, 'w') as f:
+            json_dict = {}
+            json_dict["clips"] = []
+            json.dump(json_dict,f,indent=4)
+
+
     def write_clipinfo(self, clip_id):
         data = {}
         data["clip_id"] = clip_id
@@ -152,8 +161,14 @@ class Bot(SingleServerIRCBot):
         data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
-            with open(self.output, 'r') as f:
-                json_dict = json.load(f)
+            try:
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+            except IOError:
+                self.create_jsonfile()
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+
             with open(self.output, 'w') as f:
                 json_dict["clips"].append(data)
                 json.dump(json_dict,f,indent=4)
@@ -220,6 +235,13 @@ class Bot(SingleServerIRCBot):
 
 
     def create_clip(self):
+        if self.category != "All":
+            current_category = self.get_stream_category()
+            if self.category != current_category:
+                print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
+                print("Canceled to create clip.")
+                return
+
         time.sleep(15)
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
@@ -233,9 +255,9 @@ class Bot(SingleServerIRCBot):
 
     # Get Users API を使用して配信者のIDを取得する
     def get_user_id(self, user):
-        params = (
-            ('login', user),
-        )
+        params = {
+            'login': user,
+        }
         content = self.get_request('https://api.twitch.tv/helix/users', params=params)
         print(content)
         id = content["data"][0]["id"]
@@ -249,6 +271,17 @@ class Bot(SingleServerIRCBot):
 
     def set_user_id(self, user):
         self.user_id = self.get_user_id(user)
+
+
+    # 配信中のカテゴリを取得する
+    def get_stream_category(self):
+        params = {
+            'user_id': self.streamer_id,
+        }
+        content = self.get_request('https://api.twitch.tv/helix/streams', params=params)
+        print(content)
+        category = content["data"][0]["game_name"]
+        return category
 
 
     # ログファイルのファイルパスを指定する
