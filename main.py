@@ -60,8 +60,16 @@ def train(streamer):
 @click.option('--streamer', '-s')
 @click.option('--output', '-o', required=True)
 @click.option('--category', '-c')
-def run(streamer, output, category):
+@click.option('--message-length', '-m', default=20)
+@click.option('--recent-chat', '-l', default=10)
+@click.option('--diff-clip', '-d', default=30.0)
+def run(streamer, output, category, message_length, recent_chat, diff_clip):
     click.echo("run")
+    print("Streamer : " + streamer)
+    print("Output(json or mysql) : " + output)
+    print("Message Length Limit(words) : " + str(message_length))
+    print("Recent Chat Limit(seconds) : " + str(recent_chat))
+    print("Diff Clip(seconds) : " + str(diff_clip))
 
     home = expanduser('~')
     autoclip_dir = os.path.join(home, '.autoclip-ttv')
@@ -86,7 +94,10 @@ def run(streamer, output, category):
         streamer=streamer,
         category=category,
         model=model,
-        output=output
+        output=output,
+        message_length=message_length,
+        recent_chat=recent_chat,
+        diff_clip=diff_clip
     )
     bot.start()
 
