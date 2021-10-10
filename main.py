@@ -59,7 +59,7 @@ def train(streamer):
 @click.command()
 @click.option('--streamer', '-s')
 @click.option('--output', '-o', required=True)
-@click.option('--category', '-c')
+@click.option('--category', '-c', default="All")
 @click.option('--message-length', '-m', default=20)
 @click.option('--recent-chat', '-l', default=10)
 @click.option('--diff-clip', '-d', default=30.0)
@@ -67,6 +67,7 @@ def run(streamer, output, category, message_length, recent_chat, diff_clip):
     click.echo("run")
     print("Streamer : " + streamer)
     print("Output(json or mysql) : " + output)
+    print("Category : " + category)
     print("Message Length Limit(words) : " + str(message_length))
     print("Recent Chat Limit(seconds) : " + str(recent_chat))
     print("Diff Clip(seconds) : " + str(diff_clip))
@@ -81,7 +82,6 @@ def run(streamer, output, category, message_length, recent_chat, diff_clip):
     client_id = s.split(',')[1]
     client_secret = s.split(',')[2]
     user_token = s.split(',')[3]
-    print(f'User: {user}, Output: {output}, Category: {category}')
 
     ## 既存のモデルをロードする
     model = word2vec.Word2Vec.load(f'./model/{streamer}_chat.model')
