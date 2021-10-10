@@ -148,7 +148,7 @@ class Bot(SingleServerIRCBot):
             json_dict["clips"] = []
             json.dump(json_dict,f,indent=4)
 
-            
+
     def write_clipinfo(self, clip_id, hype_max):
         data = {}
         data["clip_id"] = clip_id
@@ -236,13 +236,13 @@ class Bot(SingleServerIRCBot):
 
 
     def create_clip(self):
-      if self.category != "All":
+        if self.category != "All":
             current_category = self.get_stream_category()
             if self.category != current_category:
                 print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
                 print("Canceled to create clip.")
                 return
-              
+
         # クリップを作成するまでの間で最も高いHype値を取得する
         t = 0
         hype_max = self.hype_sum
@@ -250,7 +250,7 @@ class Bot(SingleServerIRCBot):
             hype_max = max(hype_max, self.hype_sum)
             time.sleep(1)
             t += 1
-            
+
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
         clip_id = self.create_clip_request()
@@ -340,4 +340,5 @@ class Bot(SingleServerIRCBot):
         except KeyError as e:
             print(e)
             return 0.05
+
         return min(max(sim, 0.05), 0.7)
