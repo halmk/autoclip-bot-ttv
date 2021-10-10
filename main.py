@@ -59,8 +59,18 @@ def train(streamer):
 @click.command()
 @click.option('--streamer', '-s')
 @click.option('--output', '-o', required=True)
-def run(streamer, output):
+@click.option('--category', '-c', default="All")
+@click.option('--message-length', '-m', default=20)
+@click.option('--recent-chat', '-l', default=10)
+@click.option('--diff-clip', '-d', default=30.0)
+def run(streamer, output, category, message_length, recent_chat, diff_clip):
     click.echo("run")
+    print("Streamer : " + streamer)
+    print("Output(json or mysql) : " + output)
+    print("Category : " + category)
+    print("Message Length Limit(words) : " + str(message_length))
+    print("Recent Chat Limit(seconds) : " + str(recent_chat))
+    print("Diff Clip(seconds) : " + str(diff_clip))
 
     home = expanduser('~')
     autoclip_dir = os.path.join(home, '.autoclip-ttv')
@@ -68,12 +78,10 @@ def run(streamer, output):
     autoclip_config = os.path.join(autoclip_dir, 'config')
     with open(autoclip_config, 'r') as f:
         s = f.readline()
-    print(s)
     user = s.split(',')[0]
     client_id = s.split(',')[1]
     client_secret = s.split(',')[2]
     user_token = s.split(',')[3]
-    print(user, client_id, client_secret, user_token)
 
     ## 既存のモデルをロードする
     model = word2vec.Word2Vec.load(f'./model/{streamer}_chat.model')
@@ -84,8 +92,12 @@ def run(streamer, output):
         client_secret=client_secret,
         user_token=user_token,
         streamer=streamer,
+        category=category,
         model=model,
-        output=output
+        output=output,
+        message_length=message_length,
+        recent_chat=recent_chat,
+        diff_clip=diff_clip
     )
     bot.start()
 
