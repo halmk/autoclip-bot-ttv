@@ -104,7 +104,7 @@ class Bot(SingleServerIRCBot):
 
         # コメント情報を標準出力
         last_clipped_secs = self.last_clipped - self.start_time
-        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {hype_sum:.2f}, Outlier : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
+        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {self.hype_sum:.2f}, Outlier : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
         #print(f"Channel : {self.channel} , Date : [{crt.hour:02}:{crt.minute:02}:{crt.second:02}] , User : {user} , Chat : {chat} , Hype : {sim:.2f}, Hype_sum : {hype_sum:.2f}", end='\r')
 
         return
