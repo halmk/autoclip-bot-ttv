@@ -125,6 +125,13 @@ class Bot(SingleServerIRCBot):
         return connection
 
 
+    def create_jsonfile(self):
+        with open(self.output, 'w') as f:
+            json_dict = {}
+            json_dict["clips"] = []
+            json.dump(json_dict,f,indent=4)
+
+
     def write_clipinfo(self, clip_id):
         data = {}
         data["clip_id"] = clip_id
@@ -137,8 +144,14 @@ class Bot(SingleServerIRCBot):
         data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
-            with open(self.output, 'r') as f:
-                json_dict = json.load(f)
+            try:
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+            except IOError:
+                self.create_jsonfile()
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+
             with open(self.output, 'w') as f:
                 json_dict["clips"].append(data)
                 json.dump(json_dict,f,indent=4)
