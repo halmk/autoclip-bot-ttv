@@ -26,6 +26,7 @@ class Bot(SingleServerIRCBot):
         client_secret,
         user_token,
         streamer,
+        category,
         model,
         output,
         message_length,
@@ -234,11 +235,12 @@ class Bot(SingleServerIRCBot):
 
 
     def create_clip(self):
-        current_category = self.get_stream_category()
-        if self.category != current_category:
-            print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
-            print("Canceled to create clip.")
-            return
+        if self.category != "All":
+            current_category = self.get_stream_category()
+            if self.category != current_category:
+                print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
+                print("Canceled to create clip.")
+                return
 
         time.sleep(15)
         crt = datetime.fromtimestamp(time.time())
