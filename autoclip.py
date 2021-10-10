@@ -207,7 +207,8 @@ class Bot(SingleServerIRCBot):
     def create_clip(self):
         current_category = self.get_stream_category()
         if self.category != current_category:
-            print("Target category is " + self.category + ", but current stream category is " + current_category + ".")
+            print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
+            print("Canceled to create clip.")
             return
 
         time.sleep(15)
@@ -223,9 +224,9 @@ class Bot(SingleServerIRCBot):
 
     # Get Users API を使用して配信者のIDを取得する
     def get_user_id(self, user):
-        params = (
-            ('login', user),
-        )
+        params = {
+            'login': user,
+        }
         content = self.get_request('https://api.twitch.tv/helix/users', params=params)
         print(content)
         id = content["data"][0]["id"]
@@ -243,9 +244,9 @@ class Bot(SingleServerIRCBot):
 
     # 配信中のカテゴリを取得する
     def get_stream_category(self):
-        params = (
-            ('user_id', self.streamer_id)
-        )
+        params = {
+            'user_id': self.streamer_id,
+        }
         content = self.get_request('https://api.twitch.tv/helix/streams', params=params)
         print(content)
         category = content["data"][0]["game_name"]
