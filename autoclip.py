@@ -19,7 +19,21 @@ PORT = 6667
 
 class Bot(SingleServerIRCBot):
     # 初期化
-    def __init__(self, user, client_id, client_secret, user_token, streamer, model, output, hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+    def __init__(
+        self,
+        user,
+        client_id,
+        client_secret,
+        user_token,
+        streamer,
+        category,
+        model,
+        output,
+        message_length,
+        recent_chat,
+        diff_clip,
+        hypewords=['KEKW', 'LUL', 'PogU', 'Pog', 'ｗｗｗ', 'おおお']):
+
         self.user = user
         self.client_id = client_id
         self.client_secret = client_secret
@@ -28,12 +42,16 @@ class Bot(SingleServerIRCBot):
         self.app_token = self.get_token()
         self.streamer = streamer
         self.channel = '#' + streamer
+        self.category = category
         self.model = model
         self.output = output
+        self.message_length = message_length
+        self.recent_chat = recent_chat
+        self.diff_clip = diff_clip
         self.set_user_id(user)
         self.set_streamer_id(streamer)
         self.set_logfile(streamer)
-        self.hype = 0
+        self.hype_sum = 0
         self.hypewords = hypewords
         self.que = []
         self.df = pd.DataFrame()
@@ -66,7 +84,7 @@ class Bot(SingleServerIRCBot):
         # チャットユーザとチャットメッセージを取得
         user = e.source.split('!')[0]
         chat = e.arguments[0]
-        if len(chat) >= 20 or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
+        if len(chat) >= self.message_length or chat[0]=='!' or chat[0]=='@' or user=='nightbot' or user=='streamelements':
             return
         sim = self.eval_chat(chat=chat, metric='avg')
 
@@ -74,14 +92,14 @@ class Bot(SingleServerIRCBot):
         self.que.append({'sim': sim, 'time': time.time()})
         while len(self.que) != 0:
             d_t = time.time() - self.que[0]['time']
-            if d_t >= 10:
+            if d_t >= self.recent_chat:
                 #print(f"deleted: {self.que[0]['sim']:.2f}")
                 self.que = self.que[1:]
             else:
                 break
 
-        hype_sum = sum([el['sim'] for el in self.que])
-        df_tmp = pd.Series([hype_sum])
+        self.hype_sum = sum([el['sim'] for el in self.que])
+        df_tmp = pd.Series([self.hype_sum])
         self.df = self.df.append(df_tmp, ignore_index=True)
         lim = (self.df.quantile(0.75)[0] - self.df.quantile(0.25)[0])*1.5
         outlier = self.df.quantile(0.75)[0] + lim
@@ -91,12 +109,12 @@ class Bot(SingleServerIRCBot):
         csv_file = f'./hype/{self.streamer}.csv'
         with open(csv_file, 'a') as f:
             writer = csv.writer(f)
-            writer.writerow([f'{crt_secs:.2f}', f'{hype_sum:.2f}', f'{outlier:.2f}'])
+            writer.writerow([f'{crt_secs:.2f}', f'{self.hype_sum:.2f}', f'{outlier:.2f}'])
 
         diff_clipped = time.time() - self.last_clipped
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
-        if hype_sum >= outlier and diff_clipped > 30.0:
+        if self.hype_sum >= outlier and diff_clipped > self.diff_clip:
             thread = threading.Thread(target=self.create_clip)
             thread.start()
             self.que = []
@@ -104,7 +122,7 @@ class Bot(SingleServerIRCBot):
 
         # コメント情報を標準出力
         last_clipped_secs = self.last_clipped - self.start_time
-        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {hype_sum:.2f}, Outlier : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
+        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {self.hype_sum:.2f}, Outlier : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
         #print(f"Channel : {self.channel} , Date : [{crt.hour:02}:{crt.minute:02}:{crt.second:02}] , User : {user} , Chat : {chat} , Hype : {sim:.2f}, Hype_sum : {hype_sum:.2f}", end='\r')
 
         return
@@ -124,9 +142,17 @@ class Bot(SingleServerIRCBot):
         return connection
 
 
-    def write_clipinfo(self, clip_id):
+    def create_jsonfile(self):
+        with open(self.output, 'w') as f:
+            json_dict = {}
+            json_dict["clips"] = []
+            json.dump(json_dict,f,indent=4)
+
+
+    def write_clipinfo(self, clip_id, hype_max):
         data = {}
         data["clip_id"] = clip_id
+        data["hype"] = hype_max
         data["url"] = f'https://clips.twitch.tv/{clip_id}'
         data["embed_url"] = f'https://clips.twitch.tv/embed?clip={clip_id}'
         data["broadcaster_id"] = self.streamer_id
@@ -136,8 +162,14 @@ class Bot(SingleServerIRCBot):
         data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
-            with open(self.output, 'r') as f:
-                json_dict = json.load(f)
+            try:
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+            except IOError:
+                self.create_jsonfile()
+                with open(self.output, 'r') as f:
+                    json_dict = json.load(f)
+
             with open(self.output, 'w') as f:
                 json_dict["clips"].append(data)
                 json.dump(json_dict,f,indent=4)
@@ -146,8 +178,8 @@ class Bot(SingleServerIRCBot):
             with connection:
                 with connection.cursor() as cursor:
                     # Create a new record
-                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['created_at']))
+                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`, `hype`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['created_at'], data['hype']))
 
                 connection.commit()
 
@@ -204,12 +236,26 @@ class Bot(SingleServerIRCBot):
 
 
     def create_clip(self):
-        time.sleep(15)
+        if self.category != "All":
+            current_category = self.get_stream_category()
+            if self.category != current_category:
+                print("Target category is \"" + self.category + "\", but the stream category is \"" + current_category + "\" currently.")
+                print("Canceled to create clip.")
+                return
+
+        # クリップを作成するまでの間で最も高いHype値を取得する
+        t = 0
+        hype_max = self.hype_sum
+        while t < 15:
+            hype_max = max(hype_max, self.hype_sum)
+            time.sleep(1)
+            t += 1
+
         crt = datetime.fromtimestamp(time.time())
         crt_date = f'{crt.hour:02}:{crt.minute:02}:{crt.second:02}'
         clip_id = self.create_clip_request()
         if clip_id is not None:
-            self.write_clipinfo(clip_id)
+            self.write_clipinfo(clip_id, hype_max)
             clip_file = f'./hype/{self.streamer}_clips.txt'
             with open(clip_file, 'a') as f:
                 f.write(f'{crt_date},{clip_id}\n')
@@ -217,9 +263,9 @@ class Bot(SingleServerIRCBot):
 
     # Get Users API を使用して配信者のIDを取得する
     def get_user_id(self, user):
-        params = (
-            ('login', user),
-        )
+        params = {
+            'login': user,
+        }
         content = self.get_request('https://api.twitch.tv/helix/users', params=params)
         print(content)
         id = content["data"][0]["id"]
@@ -233,6 +279,17 @@ class Bot(SingleServerIRCBot):
 
     def set_user_id(self, user):
         self.user_id = self.get_user_id(user)
+
+
+    # 配信中のカテゴリを取得する
+    def get_stream_category(self):
+        params = {
+            'user_id': self.streamer_id,
+        }
+        content = self.get_request('https://api.twitch.tv/helix/streams', params=params)
+        print(content)
+        category = content["data"][0]["game_name"]
+        return category
 
 
     # ログファイルのファイルパスを指定する
@@ -283,4 +340,5 @@ class Bot(SingleServerIRCBot):
         except KeyError as e:
             print(e)
             return 0.05
-        return max(sim, 0.05)
+
+        return min(max(sim, 0.05), 0.7)
