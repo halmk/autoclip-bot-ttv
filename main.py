@@ -27,7 +27,7 @@ def configure():
 
 
 @click.command()
-@click.option('--streamer', '-s')
+@click.option('--streamer', '-s', required=True)
 def train(streamer):
     click.echo("train")
 
