@@ -1,5 +1,6 @@
 import os
 from os.path import expanduser
+import re
 import click
 from gensim.models import word2vec
 import logging
@@ -30,6 +31,7 @@ def configure():
 def train(streamer):
     click.echo("train")
 
+    # ./chat/{streamer}/*.txt を入力とする
     chatdir = os.path.join(os.getcwd(), 'chat')
     textlist = []
     texts = os.listdir(os.path.join(chatdir, streamer))
@@ -57,17 +59,22 @@ def train(streamer):
 
 
 @click.command()
-@click.option('--streamer', '-s')
+@click.option('--streamer', '-s', required=True)
 @click.option('--output', '-o', required=True)
 @click.option('--category', '-c', default="All")
+@click.option('--model-path', '-p')
 @click.option('--message-length', '-m', default=20)
 @click.option('--recent-chat', '-l', default=10)
 @click.option('--diff-clip', '-d', default=30.0)
-def run(streamer, output, category, message_length, recent_chat, diff_clip):
+def run(streamer, output, category, model_path, message_length, recent_chat, diff_clip):
     click.echo("run")
+    if model_path is None:
+        model_path = f'./model/{streamer}_chat.model'
+
     print("Streamer : " + streamer)
     print("Output(json or mysql) : " + output)
     print("Category : " + category)
+    print("Model Path : " + model_path)
     print("Message Length Limit(words) : " + str(message_length))
     print("Recent Chat Limit(seconds) : " + str(recent_chat))
     print("Diff Clip(seconds) : " + str(diff_clip))
@@ -84,7 +91,7 @@ def run(streamer, output, category, message_length, recent_chat, diff_clip):
     user_token = s.split(',')[3]
 
     ## 既存のモデルをロードする
-    model = word2vec.Word2Vec.load(f'./model/{streamer}_chat.model')
+    model = word2vec.Word2Vec.load(model_path)
 
     bot = autoclip.Bot(
         user=user,
