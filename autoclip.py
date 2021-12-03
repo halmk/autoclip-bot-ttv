@@ -159,7 +159,6 @@ class Bot(SingleServerIRCBot):
         data["broadcaster_name"] = self.streamer
         data["creator_id"] = self.user_id
         data["creator_name"] = self.user
-        data["created_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
             try:
@@ -178,8 +177,8 @@ class Bot(SingleServerIRCBot):
             with connection:
                 with connection.cursor() as cursor:
                     # Create a new record
-                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `created_at`, `hype`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['created_at'], data['hype']))
+                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `hype`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['hype']))
 
                 connection.commit()
 
