@@ -2,7 +2,7 @@ from irc.bot import SingleServerIRCBot
 import logging
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import requests
 import json
 import os
@@ -12,6 +12,9 @@ import pandas as pd
 import pymysql.cursors
 import dj_database_url
 
+
+# タイムゾーンの生成
+JST = timezone(timedelta(hours=+9), 'JST')
 
 SERVER = 'irc.chat.twitch.tv'
 PORT = 6667
@@ -159,6 +162,7 @@ class Bot(SingleServerIRCBot):
         data["broadcaster_name"] = self.streamer
         data["creator_id"] = self.user_id
         data["creator_name"] = self.user
+        data["requested_at"] = datetime.now(JST).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
             try:
@@ -177,8 +181,8 @@ class Bot(SingleServerIRCBot):
             with connection:
                 with connection.cursor() as cursor:
                     # Create a new record
-                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `hype`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['hype']))
+                    sql = "INSERT INTO `app_autoclip` (`clip_id`, `url`, `embed_url`, `broadcaster_id`, `broadcaster_name`, `creator_id`, `creator_name`, `requested_at`, `hype`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(sql, (data['clip_id'], data['url'], data['embed_url'], data['broadcaster_id'], data['broadcaster_name'], data['creator_id'], data['creator_name'], data['requested_at'], data['hype']))
 
                 connection.commit()
 
