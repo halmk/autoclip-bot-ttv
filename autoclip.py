@@ -18,6 +18,7 @@ JST = timezone(timedelta(hours=+9), 'JST')
 
 SERVER = 'irc.chat.twitch.tv'
 PORT = 6667
+MAX_DF_HYPE = 300
 
 
 class Bot(SingleServerIRCBot):
@@ -57,7 +58,7 @@ class Bot(SingleServerIRCBot):
         self.hype_sum = 0
         self.hypewords = hypewords
         self.que = []
-        self.df = pd.DataFrame()
+        self.df_hype = pd.DataFrame()
         self.start_time = time.time()
         self.last_clipped = time.time()
         self.clip_rate_remain = 600
@@ -101,14 +102,20 @@ class Bot(SingleServerIRCBot):
             else:
                 break
 
+        # 外れ値の算出に使用するDataFrameを更新
         self.hype_sum = sum([el['sim'] for el in self.que])
         df_tmp = pd.Series([self.hype_sum])
-        self.df = self.df.append(df_tmp, ignore_index=True)
-        lim = (self.df.quantile(0.75)[0] - self.df.quantile(0.25)[0])*1.5
-        outlier = self.df.quantile(0.75)[0] + lim
-        crt_secs = time.time() - self.start_time
+        self.df_hype = self.df_hype.append(df_tmp, ignore_index=True)
+        lim = (self.df_hype.quantile(0.75)[0] - self.df_hype.quantile(0.25)[0])*1.5
+        outlier = self.df_hype.quantile(0.75)[0] + lim
 
-        # csvファイルに書き込む
+        # 外れ値の算出に使用するDataFrameの長さを制限する
+        if len(self.df_hype) > MAX_DF_HYPE:
+            self.df_hype = self.df_hype[1:]
+
+
+        # csvファイルにこの時点でのHype値と外れ値を書き込む
+        crt_secs = time.time() - self.start_time
         csv_file = f'./hype/{self.streamer}.csv'
         with open(csv_file, 'a') as f:
             writer = csv.writer(f)
@@ -125,7 +132,7 @@ class Bot(SingleServerIRCBot):
 
         # コメント情報を標準出力
         last_clipped_secs = self.last_clipped - self.start_time
-        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {self.hype_sum:.2f}, Outlier : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
+        print(f"Channel : {self.channel} , Date : [{crt_date}]\nUser : {user}\nChat({len(chat)}) : {chat}\nHype : {sim:.2f}, Hype_sum : {self.hype_sum:.2f}, Outlier[{len(self.df_hype)}] : {outlier:.2f}\nCurrent : {crt_secs:.2f}, Last clipped : {last_clipped_secs:.2f}, Rate remain : {self.clip_rate_remain}\n")
         #print(f"Channel : {self.channel} , Date : [{crt.hour:02}:{crt.minute:02}:{crt.second:02}] , User : {user} , Chat : {chat} , Hype : {sim:.2f}, Hype_sum : {hype_sum:.2f}", end='\r')
 
         return
