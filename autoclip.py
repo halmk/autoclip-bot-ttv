@@ -13,9 +13,6 @@ import pymysql.cursors
 import dj_database_url
 
 
-# タイムゾーンの生成
-JST = timezone(timedelta(hours=+9), 'JST')
-
 SERVER = 'irc.chat.twitch.tv'
 PORT = 6667
 MAX_DF_HYPE = 300
@@ -169,7 +166,7 @@ class Bot(SingleServerIRCBot):
         data["broadcaster_name"] = self.streamer
         data["creator_id"] = self.user_id
         data["creator_name"] = self.user
-        data["requested_at"] = datetime.now(JST).strftime('%Y-%m-%dT%H:%M:%SZ')
+        data["requested_at"] = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if self.output.split('.')[-1] == 'json':
             try:
